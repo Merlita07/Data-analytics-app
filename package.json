@@ -1,0 +1,37 @@
+{
+  "name": "tajedar-fullstack-web-app",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "prisma generate && next build",
+    "start": "next start",
+    "lint": "next lint",
+    "postinstall": "prisma generate"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.0.0",
+    "@types/papaparse": "^5.5.2",
+    "chart.js": "^4.0.0",
+    "chartjs-adapter-date-fns": "^3.0.0",
+    "date-fns": "^4.1.0",
+    "mysql2": "^3.0.0",
+    "next": "16.0.0",
+    "papaparse": "^5.5.3",
+    "prisma": "^5.0.0",
+    "react": "^18",
+    "react-chartjs-2": "^5.0.0",
+    "react-dom": "^18"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "autoprefixer": "^10.0.1",
+    "eslint": "^9",
+    "eslint-config-next": "16.0.0",
+    "postcss": "^8",
+    "tailwindcss": "^3.4.0",
+    "typescript": "^5"
+  }
+}
