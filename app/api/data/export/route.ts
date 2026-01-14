@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import fs from 'fs'
+import path from 'path'
+import Papa from 'papaparse'
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,10 +24,37 @@ export async function GET(request: NextRequest) {
     if (category) where.category = category
     if (source) where.source = source
 
-    const data = await prisma.dataEntry.findMany({
-      where,
-      orderBy: { timestamp: 'desc' },
-    })
+    let data: any[]
+    try {
+      data = await prisma.dataEntry.findMany({
+        where,
+        orderBy: { timestamp: 'desc' },
+      })
+    } catch (e: any) {
+      const msg = (e && e.message) || ''
+      if (msg.includes('DATABASE_URL') || e.name === 'PrismaClientInitializationError') {
+        const csvPath = path.resolve(process.cwd(), 'sample-data.csv')
+        const csvContent = fs.readFileSync(csvPath, 'utf8')
+        const parsed = Papa.parse(csvContent, { header: true, skipEmptyLines: true }).data as any[]
+        data = parsed.map((row, idx) => ({
+          id: idx + 1,
+          timestamp: new Date(row.timestamp),
+          value: parseFloat(row.value),
+          category: row.category,
+          source: row.source,
+        }))
+        // apply basic where filters
+        if (where.timestamp) {
+          const gte = where.timestamp.gte
+          const lte = where.timestamp.lte
+          data = data.filter(e => e.timestamp >= gte && e.timestamp <= lte)
+        }
+        if (where.category) data = data.filter(e => e.category === where.category)
+        if (where.source) data = data.filter(e => e.source === where.source)
+      } else {
+        throw e
+      }
+    }
 
     if (format === 'json') {
       return NextResponse.json(data)

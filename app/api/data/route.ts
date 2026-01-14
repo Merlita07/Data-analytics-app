@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import fs from 'fs'
+import path from 'path'
+import Papa from 'papaparse'
 
 export async function POST(request: NextRequest) {
   try {
@@ -112,16 +115,62 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Get total count for pagination
-    const totalCount = await prisma.dataEntry.count({ where })
+    // Get filtered and paginated data. Try Prisma first; if DATABASE_URL is missing, fall back to bundled sample CSV.
+    let totalCount: number
+    let data: any[]
+    try {
+      totalCount = await prisma.dataEntry.count({ where })
+      data = await prisma.dataEntry.findMany({
+        where,
+        orderBy: { timestamp: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      })
+    } catch (e: any) {
+      const msg = (e && e.message) || ''
+      if (msg.includes('DATABASE_URL') || e.name === 'PrismaClientInitializationError') {
+        // Read sample CSV bundled with the project
+        const csvPath = path.resolve(process.cwd(), 'sample-data.csv')
+        const csvContent = fs.readFileSync(csvPath, 'utf8')
+        const parsed = Papa.parse(csvContent, { header: true, skipEmptyLines: true }).data as any[]
+        const entries = parsed.map((row, idx) => ({
+          id: idx + 1,
+          timestamp: new Date(row.timestamp),
+          value: parseFloat(row.value),
+          category: row.category,
+          source: row.source,
+        }))
 
-    // Get filtered and paginated data
-    const data = await prisma.dataEntry.findMany({
-      where,
-      orderBy: { timestamp: 'desc' },
-      skip: (page - 1) * limit,
-      take: limit,
-    })
+        // Apply same filters as 'where'
+        let filtered = entries
+        if (where.timestamp) {
+          const gte = where.timestamp.gte
+          const lte = where.timestamp.lte
+          filtered = filtered.filter(e => e.timestamp >= gte && e.timestamp <= lte)
+        }
+        if (where.category) filtered = filtered.filter(e => e.category === where.category)
+        if (where.source) filtered = filtered.filter(e => e.source === where.source)
+        if (where.OR) {
+          // simple OR handling for search
+          const or = where.OR
+          filtered = filtered.filter(e => {
+            return or.some((clause: any) => {
+              if (clause.value !== undefined) return e.value === clause.value
+              if (clause.category && clause.category.contains) return e.category.toLowerCase().includes(clause.category.contains.toLowerCase())
+              if (clause.source && clause.source.contains) return e.source.toLowerCase().includes(clause.source.contains.toLowerCase())
+              return false
+            })
+          })
+        }
+
+        totalCount = filtered.length
+        // sort desc by timestamp
+        filtered.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+        data = filtered.slice((page - 1) * limit, (page - 1) * limit + limit)
+      } else {
+        throw e
+      }
+    }
 
     // Enhanced analytics (on filtered data)
     const totalEntries = data.length
