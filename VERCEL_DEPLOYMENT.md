@@ -2,7 +2,7 @@
 
 ## Summary of recent updates
 - Upgraded Next.js to a patched release (16.1.1) to address a CVE reported by Vercel.
-- Ensure your project on Vercel uses a network-accessible MySQL instance — local XAMPP (`localhost`) is not reachable from Vercel.
+- Switched Prisma to use PostgreSQL for compatibility with Supabase (recommended production DB).
 
 ## Quick Deploy Steps
 1. **Connect to Vercel:**
@@ -13,11 +13,11 @@
    - Build command: `npm run build` (this runs `prisma generate` then `next build`)
 
 3. **Set Environment Variables (Production):**
-    - Add `DATABASE_URL` in your Vercel Project → Settings → Environment Variables
-    - Use a production MySQL connection string (example):
-       ```
-   DATABASE_URL=mysql://username:password@host:3306/database_name
-   ```
+   - Add `DATABASE_URL` in your Vercel Project → Settings → Environment Variables
+   - Use a production Postgres connection string (example for Supabase):
+      ```
+DATABASE_URL=postgresql://<DB_USER>:<DB_PASSWORD>@db.<region>.supabase.co:5432/postgres?schema=public
+      ```
 
 4. **Deploy:**
    - Push to `main` (or the production branch you configured) or deploy manually from the Vercel UI
@@ -26,24 +26,22 @@
 - The repo's `.env` and `.env.local` use `mysql://root@localhost:3306/data_analytics`. Vercel cannot connect to `localhost` on your development machine.
 - Server-side code (Prisma in `lib/prisma.ts` and API routes in `app/api`) requires a remote DB.
 
-## Recommended: Migrate your local DB to a hosted MySQL (production-ready)
-1. Export local data (on your machine with XAMPP):
-```powershell
-mysqldump -u root -p data_analytics > dump.sql
-2. Create a hosted MySQL (PlanetScale, RDS, DigitalOcean, ClearDB, etc.)
-3. Import the dump into the hosted DB:
-```bash
-mysql -h <HOST> -P <PORT> -u <USER> -p <NEW_DB_NAME> < dump.sql
-```
-4. Set `DATABASE_URL` on Vercel to the hosted connection string
-5. On Vercel (or locally before deploy) run migrations and generate Prisma client:
+## Recommended: Migrate your local data to Supabase (Postgres)
+
+1. Create a Supabase project at https://app.supabase.com and get the Postgres connection string (Settings → Database → Connection string).
+2. In Vercel, set `DATABASE_URL` to the Supabase connection string (example shown above).
+3. Import data:
+   - Option A (recommended for small datasets): Export CSV from your local DB (or use the provided `sample-data.csv`) and use Supabase Table Editor → "Import CSV" to populate the `DataEntry` table.
+   - Option B (for larger or automated migrations): use `pgloader` or a migration tool to transfer MySQL -> Postgres data.
+4. Apply Prisma migrations on production (after `DATABASE_URL` is set):
 ```bash
 npx prisma migrate deploy
 npx prisma generate
 ```
 
 Notes:
-- PlanetScale has a Git-friendly workflow and a free tier; if you use it with Prisma, follow PlanetScale's guide for branching and `prisma migrate` compatibility.
+- Supabase provides a Postgres database with an easy UI for importing CSVs and managing tables.
+- Prisma is now configured for `postgresql` in `prisma/schema.prisma`.
 
 ## Temporary test (not for production): expose local MySQL to Vercel
 - Only use for short tests. Exposing your DB publicly is insecure.
