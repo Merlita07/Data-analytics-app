@@ -43,35 +43,46 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Check for duplicate entries (same value, category, source within last hour)
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000)
-    const existingEntry = await prisma.dataEntry.findFirst({
-      where: {
-        value: numValue,
-        category,
-        source,
-        timestamp: {
-          gte: oneHourAgo
+    // Check for duplicate entries and create — handle missing DB gracefully
+    try {
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000)
+      const existingEntry = await prisma.dataEntry.findFirst({
+        where: {
+          value: numValue,
+          category,
+          source,
+          timestamp: {
+            gte: oneHourAgo
+          }
         }
+      })
+
+      if (existingEntry) {
+        return NextResponse.json({
+          error: 'Duplicate entry',
+          details: 'Similar entry exists within the last hour'
+        }, { status: 409 })
       }
-    })
 
-    if (existingEntry) {
-      return NextResponse.json({
-        error: 'Duplicate entry',
-        details: 'Similar entry exists within the last hour'
-      }, { status: 409 })
+      const dataEntry = await prisma.dataEntry.create({
+        data: {
+          value: numValue,
+          category: category.trim(),
+          source: source.trim(),
+        },
+      })
+
+      return NextResponse.json(dataEntry, { status: 201 })
+    } catch (e: any) {
+      const msg = (e && e.message) || ''
+      if (msg.includes('DATABASE_URL') || e.name === 'PrismaClientInitializationError') {
+        return NextResponse.json({
+          error: 'DATABASE_URL not configured',
+          details: 'Set DATABASE_URL in your environment (Vercel project settings) to enable writes.'
+        }, { status: 503 })
+      }
+      throw e
     }
-
-    const dataEntry = await prisma.dataEntry.create({
-      data: {
-        value: numValue,
-        category: category.trim(),
-        source: source.trim(),
-      },
-    })
-
-    return NextResponse.json(dataEntry, { status: 201 })
   } catch (error) {
     console.error('Error creating data entry:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
@@ -276,16 +287,24 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'ID is required' }, { status: 400 })
     }
 
-    const updatedEntry = await prisma.dataEntry.update({
-      where: { id: parseInt(id) },
-      data: {
-        ...(value !== undefined && { value: parseFloat(value) }),
-        ...(category && { category }),
-        ...(source && { source }),
-      },
-    })
+    try {
+      const updatedEntry = await prisma.dataEntry.update({
+        where: { id: parseInt(id) },
+        data: {
+          ...(value !== undefined && { value: parseFloat(value) }),
+          ...(category && { category }),
+          ...(source && { source }),
+        },
+      })
 
-    return NextResponse.json(updatedEntry)
+      return NextResponse.json(updatedEntry)
+    } catch (e: any) {
+      const msg = (e && e.message) || ''
+      if (msg.includes('DATABASE_URL') || e.name === 'PrismaClientInitializationError') {
+        return NextResponse.json({ error: 'DATABASE_URL not configured', details: 'Set DATABASE_URL to enable updates.' }, { status: 503 })
+      }
+      throw e
+    }
   } catch (error) {
     console.error('Error updating data entry:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
@@ -301,11 +320,19 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'ID is required' }, { status: 400 })
     }
 
-    await prisma.dataEntry.delete({
-      where: { id: parseInt(id) },
-    })
+    try {
+      await prisma.dataEntry.delete({
+        where: { id: parseInt(id) },
+      })
 
-    return NextResponse.json({ message: 'Data entry deleted successfully' })
+      return NextResponse.json({ message: 'Data entry deleted successfully' })
+    } catch (e: any) {
+      const msg = (e && e.message) || ''
+      if (msg.includes('DATABASE_URL') || e.name === 'PrismaClientInitializationError') {
+        return NextResponse.json({ error: 'DATABASE_URL not configured', details: 'Set DATABASE_URL to enable deletes.' }, { status: 503 })
+      }
+      throw e
+    }
   } catch (error) {
     console.error('Error deleting data entry:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
