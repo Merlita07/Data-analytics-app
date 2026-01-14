@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
 
     // Generate CSV
     const csvHeaders = 'ID,Timestamp,Value,Category,Source\n'
-    const csvRows = data.map(entry =>
+    const csvRows = data.map((entry: any) =>
       `${entry.id},"${entry.timestamp.toISOString()}","${entry.value}","${entry.category}","${entry.source}"`
     ).join('\n')
 

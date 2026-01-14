@@ -125,21 +125,21 @@ export async function GET(request: NextRequest) {
 
     // Enhanced analytics (on filtered data)
     const totalEntries = data.length
-    const averageValue = data.length > 0 ? data.reduce((sum, entry) => sum + entry.value, 0) / data.length : 0
-    const totalValue = data.reduce((sum, entry) => sum + entry.value, 0)
-    const minValue = data.length > 0 ? Math.min(...data.map(d => d.value)) : 0
-    const maxValue = data.length > 0 ? Math.max(...data.map(d => d.value)) : 0
-    const categories = [...new Set(data.map(d => d.category))]
+    const averageValue = data.length > 0 ? data.reduce((sum: number, entry: any) => sum + entry.value, 0) / data.length : 0
+    const totalValue = data.reduce((sum: number, entry: any) => sum + entry.value, 0)
+    const minValue = data.length > 0 ? Math.min(...data.map((d: any) => d.value)) : 0
+    const maxValue = data.length > 0 ? Math.max(...data.map((d: any) => d.value)) : 0
+    const categories = [...new Set(data.map((d: any) => d.category))]
 
     // Sum by category
     const sumByCategory = categories.map(cat => ({
       category: cat,
-      sum: data.filter(d => d.category === cat).reduce((sum, d) => sum + d.value, 0),
-      count: data.filter(d => d.category === cat).length,
+      sum: data.filter((d: any) => d.category === cat).reduce((sum: number, d: any) => sum + d.value, 0),
+      count: data.filter((d: any) => d.category === cat).length,
     }))
 
     // Trends: group by date (YYYY-MM-DD)
-    const trends = data.reduce((acc, entry) => {
+    const trends = data.reduce((acc: Record<string, { date: string; total: number; count: number }>, entry: any) => {
       const date = entry.timestamp.toISOString().split('T')[0]
       if (!acc[date]) acc[date] = { date, total: 0, count: 0 }
       acc[date].total += entry.value
@@ -147,17 +147,17 @@ export async function GET(request: NextRequest) {
       return acc
     }, {} as Record<string, { date: string; total: number; count: number }>)
 
-    const trendsArray = Object.values(trends).sort((a, b) => a.date.localeCompare(b.date))
+    const trendsArray = (Object.values(trends).sort((a: any, b: any) => a.date.localeCompare(b.date)) as any[])
 
     // Calculate trend slope and intercept using simple linear regression
     let trendSlope = 0
     let trendIntercept = 0
     if (trendsArray.length >= 2) {
       const n = trendsArray.length
-      const sumX = trendsArray.reduce((sum, _, i) => sum + i, 0)
-      const sumY = trendsArray.reduce((sum, trend) => sum + trend.total, 0)
-      const sumXY = trendsArray.reduce((sum, trend, i) => sum + i * trend.total, 0)
-      const sumXX = trendsArray.reduce((sum, _, i) => sum + i * i, 0)
+      const sumX = trendsArray.reduce((sum: number, _: any, i: number) => sum + i, 0)
+      const sumY = trendsArray.reduce((sum: number, trend: any) => sum + trend.total, 0)
+      const sumXY = trendsArray.reduce((sum: number, trend: any, i: number) => sum + i * trend.total, 0)
+      const sumXX = trendsArray.reduce((sum: number, _: any, i: number) => sum + i * i, 0)
 
       trendSlope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX)
       trendIntercept = (sumY - trendSlope * sumX) / n
