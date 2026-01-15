@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import * as Sentry from "@sentry/nextjs"
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, LineElement, PointElement, ArcElement, TimeScale } from 'chart.js'
 import 'chartjs-adapter-date-fns'
 import { Bar, Line, Pie, Scatter } from 'react-chartjs-2'
@@ -98,6 +99,12 @@ export default function Dashboard() {
       }
     } catch (error) {
       console.error('Error fetching data:', error)
+      Sentry.captureException(error, {
+        tags: {
+          component: 'Dashboard',
+          action: 'fetchData'
+        }
+      })
     } finally {
       if (!isAutoRefresh) {
         setLoading(false)

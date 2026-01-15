@@ -6,8 +6,8 @@ generator client {
 }
 
 datasource db {
-  // Using MySQL/XAMPP for local development
-  provider = "mysql"
+  // Using PostgreSQL with Supabase
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 

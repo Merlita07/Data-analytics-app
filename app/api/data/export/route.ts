@@ -33,8 +33,21 @@ export async function GET(request: NextRequest) {
     } catch (e: any) {
       const msg = (e && e.message) || ''
       if (msg.includes('DATABASE_URL') || e.name === 'PrismaClientInitializationError') {
-        const csvPath = path.resolve(process.cwd(), 'sample-data.csv')
-        const csvContent = fs.readFileSync(csvPath, 'utf8')
+        // Try to fetch public sample CSV (works on Vercel). Fallback to local file read.
+        let csvContent = ''
+        try {
+          const origin = new URL(request.url).origin
+          const res = await fetch(`${origin}/sample-data.csv`)
+          if (res.ok) {
+            csvContent = await res.text()
+          } else {
+            const csvPath = path.resolve(process.cwd(), 'sample-data.csv')
+            csvContent = fs.readFileSync(csvPath, 'utf8')
+          }
+        } catch (fetchErr) {
+          const csvPath = path.resolve(process.cwd(), 'sample-data.csv')
+          csvContent = fs.readFileSync(csvPath, 'utf8')
+        }
         const parsed = Papa.parse(csvContent, { header: true, skipEmptyLines: true }).data as any[]
         data = parsed.map((row, idx) => ({
           id: idx + 1,

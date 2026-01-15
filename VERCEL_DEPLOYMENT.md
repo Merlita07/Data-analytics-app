@@ -1,53 +1,184 @@
 # Vercel Deployment Guide
 
-## Summary of recent updates
-- Upgraded Next.js to a patched release (16.1.1) to address a CVE reported by Vercel.
-- Switched Prisma to use PostgreSQL for compatibility with Supabase (recommended production DB).
-
 ## Quick Deploy Steps
-1. **Connect to Vercel:**
-   - Go to vercel.com → Import Project → Connect your GitHub repository
 
-2. **Configure Project:**
-   - Vercel will auto-detect Next.js and the App Router
-   - Build command: `npm run build` (this runs `prisma generate` then `next build`)
+### 1. Set up Supabase Database
+- Go to [app.supabase.com](https://app.supabase.com)
+- Create free account and new project (PostgreSQL)
+- Copy your connection string from Settings → Database
 
-3. **Set Environment Variables (Production):**
-   - Add `DATABASE_URL` in your Vercel Project → Settings → Environment Variables
-   - Use a production Postgres connection string (example for Supabase):
-      ```
-DATABASE_URL=postgresql://<DB_USER>:<DB_PASSWORD>@db.<region>.supabase.co:5432/postgres?schema=public
-      ```
+### 2. Connect to Vercel
+- Go to vercel.com → Import Project → Connect your GitHub repository
+- Vercel will auto-detect Next.js configuration
 
-4. **Deploy:**
-   - Push to `main` (or the production branch you configured) or deploy manually from the Vercel UI
+### 3. Add Environment Variables
+In Vercel Project → Settings → Environment Variables, add:
 
-## Why your deployment shows no data
-- The repo's `.env` and `.env.local` use `mysql://root@localhost:3306/data_analytics`. Vercel cannot connect to `localhost` on your development machine.
-- Server-side code (Prisma in `lib/prisma.ts` and API routes in `app/api`) requires a remote DB.
-
-## Recommended: Migrate your local data to Supabase (Postgres)
-
-1. Create a Supabase project at https://app.supabase.com and get the Postgres connection string (Settings → Database → Connection string).
-2. In Vercel, set `DATABASE_URL` to the Supabase connection string (example shown above).
-3. Import data:
-   - Option A (recommended for small datasets): Export CSV from your local DB (or use the provided `sample-data.csv`) and use Supabase Table Editor → "Import CSV" to populate the `DataEntry` table.
-   - Option B (for larger or automated migrations): use `pgloader` or a migration tool to transfer MySQL -> Postgres data.
-4. Apply Prisma migrations on production (after `DATABASE_URL` is set):
-```bash
-npx prisma migrate deploy
-npx prisma generate
+```
+DATABASE_URL=postgresql://postgres:[password]@db.[region].supabase.co:5432/postgres?sslmode=require
+NEXT_PUBLIC_SENTRY_DSN=https://your-key@sentry.io/project-id
+SENTRY_DSN=https://your-key@sentry.io/project-id
+SENTRY_ORG=your-org
+SENTRY_PROJECT=your-project
+SENTRY_AUTH_TOKEN=your-token
 ```
 
-Notes:
-- Supabase provides a Postgres database with an easy UI for importing CSVs and managing tables.
-- Prisma is now configured for `postgresql` in `prisma/schema.prisma`.
+### 4. Deploy
+- Push to `main` or deploy manually from Vercel UI
+- Vercel will auto-build using `npm run build`
 
-## Temporary test (not for production): expose local MySQL to Vercel
-- Only use for short tests. Exposing your DB publicly is insecure.
-- Using ngrok TCP (example):
-```powershell
-# start ngrok and expose local MySQL
+## Supabase + Vercel Integration (Automatic)
+
+For easiest setup:
+
+1. In Supabase dashboard → Settings → Integrations
+2. Click "Vercel"
+3. Choose your Vercel project
+4. Click "Connect"
+
+This automatically adds `DATABASE_URL` to Vercel! ✨
+
+Then just push your code:
+```bash
+git push
+```
+
+## Migrating Data to Supabase
+
+### Option 1: Use Prisma (Recommended)
+
+1. Push schema to Supabase:
+   ```bash
+   npx prisma db push
+   ```
+
+2. Import data from local PostgreSQL:
+   ```bash
+   # Export from local PostgreSQL
+   pg_dump -U postgres -h localhost data_analytics > backup.sql
+   
+   # Import to Supabase
+   psql -U postgres -h db.[region].supabase.co -d postgres < backup.sql
+   ```
+
+### Option 2: Import CSV (Easiest)
+
+1. Export your data as CSV
+2. In Supabase dashboard → Table Editor
+3. Select `DataEntry` table
+4. Click "Import" and select your CSV file
+5. Map columns and confirm
+
+### Option 3: Manual SQL (Fastest)
+1. Open Supabase SQL Editor
+2. Create table:
+   ```sql
+   CREATE TABLE "DataEntry" (
+     id SERIAL PRIMARY KEY,
+     timestamp TIMESTAMP DEFAULT NOW(),
+     value FLOAT NOT NULL,
+     category VARCHAR(100) NOT NULL,
+     source VARCHAR(100) NOT NULL
+   );
+   ```
+3. Copy data from other sources
+
+If you prefer PostgreSQL:
+
+1. Create account at [supabase.com](https://supabase.com)
+2. Get connection string
+3. Update `prisma/schema.prisma`:
+   ```prisma
+   datasource db {
+     provider = "postgresql"
+     url      = env("DATABASE_URL")
+   }
+   ```
+4. Add to Vercel environment variables
+5. Run:
+   ```bash
+   npx prisma migrate deploy
+   ```
+
+## Environment Variables
+
+### Required
+- `DATABASE_URL` - Database connection string (PostgreSQL)
+
+### Sentry (Optional but Recommended)
+- `NEXT_PUBLIC_SENTRY_DSN` - Client-side Sentry DSN
+- `SENTRY_DSN` - Server-side Sentry DSN
+- `SENTRY_ORG` - For source maps upload
+- `SENTRY_PROJECT` - For source maps upload
+- `SENTRY_AUTH_TOKEN` - For source maps upload
+
+### Optional
+- `NODE_ENV` - Set to `production` automatically by Vercel
+
+## Troubleshooting
+
+### Build fails with DATABASE_URL error
+- Verify `DATABASE_URL` is set in Vercel environment variables
+- Check connection string format is correct
+- Ensure password doesn't contain special characters requiring encoding
+
+### Deployment succeeds but no data appears
+- Database tables not created: Run `npx prisma db push` locally first
+- Data not migrated: Import CSV or use migration tools
+- Connection string incorrect: Test with `npx prisma studio`
+
+### Supabase connection timeout
+- Verify connection string is correct
+- Check Supabase database is still active
+- Ensure `?sslmode=require` is included in connection string
+
+### Sentry not capturing errors
+- Verify DSN is set correctly
+- Check app is not in development mode
+- Visit Sentry dashboard to verify organization/project
+
+## Monitoring After Deploy
+
+1. **Vercel Dashboard:**
+   - Check deployment status and logs
+   - Monitor function runtime and edge functions
+
+2. **Sentry Dashboard:**
+   - View errors and exceptions
+   - Monitor performance metrics
+   - Check release tracking
+
+3. **Supabase Dashboard:**
+   - Monitor query counts
+   - Check query insights for slow queries
+   - View storage usage in Settings
+
+## Best Practices
+
+1. **Backup your data:**
+   - Supabase provides automatic daily backups
+   - Access backups in Settings → Backups
+
+2. **Monitor performance:**
+   - Use PlanetScale Insights to identify slow queries
+   - Set up Sentry alerts for critical errors
+
+3. **Use staging:**
+   - Create PlanetScale branch for testing
+   - Use Vercel Preview deployments for staging
+
+4. **Keep secrets secure:**
+   - Never commit `.env` files
+   - Use Vercel environment variables for sensitive data
+   - Rotate auth tokens regularly
+
+## Additional Resources
+
+- [PlanetScale Documentation](https://planetscale.com/docs)
+- [Prisma + PlanetScale Guide](https://www.prisma.io/docs/guides/database/mysql-planetscale)
+- [Vercel Deployment Guide](https://vercel.com/docs/frameworks/nextjs)
+- [Sentry Setup](./SENTRY_SETUP.md)
+- [PlanetScale Setup](./PLANETSCALE_SETUP.md)
 ngrok tcp 3306
 # ngrok provides a host:port like 0.tcp.ngrok.io:XXXXX
 # set Vercel DATABASE_URL to:
@@ -82,10 +213,10 @@ ngrok tcp 3306
 2. **Configure Project:**
    - Vercel will auto-detect Next.js
    - Build settings are pre-configured via `vercel.json`
-
-3. **Set Environment Variables:**
-   ```
-   DATABASE_URL=mysql://username:password@host:port/database_name
+      - Use a production MySQL connection string (example):
+         ```
+   DATABASE_URL=mysql://<DB_USER>:<DB_PASSWORD>@host:3306/database_name
+         ```
    ```
 
 4. **Deploy:**
@@ -94,29 +225,27 @@ ngrok tcp 3306
 
 ## Production Database Setup
 
-For production, you'll need a MySQL database. Recommended options:
+   ## Local development with XAMPP / MySQL
 
+   This repository is configured to work with a local MySQL server (XAMPP) during development. Vercel cannot reach your local XAMPP instance — deployments must use a network-accessible database.
 - **PlanetScale** (Vercel-owned, free tier available)
+   1. For local development, run XAMPP and create a MySQL database. Set `DATABASE_URL` locally (in `.env`) like:
 - **AWS RDS**
+   ```bash
+   DATABASE_URL="mysql://root:password@127.0.0.1:3306/your_db_name"
+   ```
 - **Google Cloud SQL**
+   2. Run Prisma migrations locally and generate the client:
 - **Azure Database for MySQL**
+   ```bash
+   npx prisma migrate dev --name init
+   npx prisma generate
+   ```
 
-### Database Migration Steps:
+## Additional Resources
 
-1. Set up your production database
-2. Update `DATABASE_URL` in Vercel environment variables
-3. Run migrations: `npx prisma migrate deploy`
-4. Generate client: `npx prisma generate`
-
-## Troubleshooting
-
-- **Build fails:** Check that `DATABASE_URL` is set
-- **API timeouts:** Increase timeout in `vercel.json` if needed
-- **Database connection:** Ensure database allows connections from Vercel's IP ranges
-
-## Post-Deployment
-
-- Test all API endpoints
-- Verify CSV import/export functionality
-- Check chart rendering on dashboard
-- Monitor for any runtime errors
+- [Supabase Documentation](https://supabase.com/docs)
+- [Prisma + Supabase Guide](https://www.prisma.io/docs/guides/database/supabase)
+- [Vercel Deployment Guide](https://vercel.com/docs/frameworks/nextjs)
+- [Sentry Setup](./SENTRY_SETUP.md)
+- [Supabase Setup](./SUPABASE_SETUP.md)
