@@ -14,4 +14,5 @@ module.exports = withSentryConfig(nextConfig, {
   transpileClientSDK: true,
   tunnelRoute: "/monitoring",
   hideSourceMaps: true,
+  dryRun: true,
 });
