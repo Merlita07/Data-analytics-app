@@ -1,58 +1,23 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
 import DataInput from '@/components/DataInput'
 import Link from 'next/link'
 
 export default function InputPage() {
-  const router = useRouter()
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    const token = localStorage.getItem('token')
-    if (!token) {
-      router.push('/login')
-    } else {
-      setIsLoggedIn(true)
-    }
-    setLoading(false)
-  }, [router])
-
-  if (loading) {
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>
-  }
-
-  if (!isLoggedIn) {
-    return null
-  }
-
   return (
     <main className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-indigo-950">
       {/* Navigation Bar */}
       <div className="bg-slate-900/80 backdrop-blur-sm border-b border-slate-700/50 px-6 py-4">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <Link href="/dashboard" className="text-2xl font-bold text-white hover:text-cyan-400 transition">
+          <Link href="/" className="text-2xl font-bold text-white hover:text-cyan-400 transition">
             📊 Tajedar
           </Link>
-          <div className="flex gap-4">
-            <Link
-              href="/dashboard"
-              className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white font-semibold py-2 px-6 rounded-xl transition-all duration-300"
-            >
-              View Dashboard
-            </Link>
-            <button
-              onClick={() => {
-                localStorage.removeItem('token')
-                router.push('/login')
-              }}
-              className="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-6 rounded-xl transition-all duration-300"
-            >
-              Logout
-            </button>
-          </div>
+          <Link
+            href="/dashboard"
+            className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white font-semibold py-2 px-6 rounded-xl transition-all duration-300"
+          >
+            View Dashboard
+          </Link>
         </div>
       </div>
 
