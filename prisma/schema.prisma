@@ -6,9 +6,12 @@ generator client {
 }
 
 datasource db {
-  // Using PostgreSQL with Supabase
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  // TEMPORARY: Using SQLite for local development (Supabase is under maintenance)
+  // When Supabase is back online, change back to:
+  // provider = "postgresql"
+  // url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./dev.db"
 }
 
 model DataEntry {
