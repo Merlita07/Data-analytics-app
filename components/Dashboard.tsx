@@ -222,6 +222,21 @@ export default function Dashboard() {
     }
   }
 
+  const handleLogout = async () => {
+    if (!confirm('Are you sure you want to log out?')) return
+    try {
+      const response = await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include'
+      })
+      if (response.ok) {
+        window.location.href = '/login'
+      }
+    } catch (error) {
+      console.error('Error logging out:', error)
+    }
+  }
+
   if (loading) {
     return <div className="text-center text-white">Loading...</div>
   }
@@ -318,7 +333,15 @@ export default function Dashboard() {
 
   return (
     <div className="w-full">
-      <h1 className="text-2xl md:text-3xl font-bold mb-4 md:mb-6 text-white">Data Analytics Dashboard</h1>
+      <div className="flex justify-between items-center mb-4 md:mb-6">
+        <h1 className="text-2xl md:text-3xl font-bold text-white">Data Analytics Dashboard</h1>
+        <button
+          onClick={handleLogout}
+          className="bg-red-600/80 hover:bg-red-700 text-white font-semibold py-2 px-4 md:px-6 rounded-xl transition-all duration-300 text-sm md:text-base border border-red-500/20 hover:border-red-500/50"
+        >
+          Logout
+        </button>
+      </div>
 
       {/* Advanced Filters */}
       <div className="bg-gradient-to-br from-slate-800/80 to-slate-900/80 backdrop-blur-sm p-4 md:p-6 rounded-2xl shadow-xl border border-slate-700/50 mb-4 md:mb-6">

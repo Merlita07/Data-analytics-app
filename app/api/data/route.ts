@@ -4,11 +4,33 @@ import * as Sentry from "@sentry/nextjs"
 import fs from 'fs'
 import path from 'path'
 import Papa from 'papaparse'
+import jwt from 'jsonwebtoken'
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const { value, category, source } = body
+
+    // Extract userId from JWT token
+    const cookie = request.cookies.get('auth-token')?.value
+    let userId: number | null = null
+
+    if (!cookie) {
+      return NextResponse.json({
+        error: 'Unauthorized',
+        details: 'No authentication token found'
+      }, { status: 401 })
+    }
+
+    try {
+      const decoded = jwt.verify(cookie, process.env.JWT_SECRET || 'your-secret-key') as { userId: number; email: string }
+      userId = decoded.userId
+    } catch {
+      return NextResponse.json({
+        error: 'Unauthorized',
+        details: 'Invalid or expired token'
+      }, { status: 401 })
+    }
 
     // Enhanced validation
     if (!value || !category || !source) {
@@ -70,6 +92,7 @@ export async function POST(request: NextRequest) {
           value: numValue,
           category: category.trim(),
           source: source.trim(),
+          userId: userId!,
         },
       })
 
@@ -107,8 +130,29 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '50')
 
+    // Extract userId from JWT token
+    const cookie = request.cookies.get('auth-token')?.value
+    let userId: number | null = null
+
+    if (!cookie) {
+      return NextResponse.json({
+        error: 'Unauthorized',
+        details: 'No authentication token found'
+      }, { status: 401 })
+    }
+
+    try {
+      const decoded = jwt.verify(cookie, process.env.JWT_SECRET || 'your-secret-key') as { userId: number; email: string }
+      userId = decoded.userId
+    } catch {
+      return NextResponse.json({
+        error: 'Unauthorized',
+        details: 'Invalid or expired token'
+      }, { status: 401 })
+    }
+
     // Build where clause for filtering
-    const where: any = {}
+    const where: any = { userId: userId! }
     if (startDate && endDate) {
       where.timestamp = {
         gte: new Date(startDate),
@@ -268,7 +312,37 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'ID is required' }, { status: 400 })
     }
 
+    // Extract userId from JWT token
+    const cookie = request.cookies.get('auth-token')?.value
+    let userId: number | null = null
+
+    if (!cookie) {
+      return NextResponse.json({
+        error: 'Unauthorized',
+        details: 'No authentication token found'
+      }, { status: 401 })
+    }
+
     try {
+      const decoded = jwt.verify(cookie, process.env.JWT_SECRET || 'your-secret-key') as { userId: number; email: string }
+      userId = decoded.userId
+    } catch {
+      return NextResponse.json({
+        error: 'Unauthorized',
+        details: 'Invalid or expired token'
+      }, { status: 401 })
+    }
+
+    try {
+      // Verify ownership before updating
+      const existingEntry = await prisma.dataEntry.findUnique({
+        where: { id: parseInt(id) }
+      })
+
+      if (!existingEntry || existingEntry.userId !== userId!) {
+        return NextResponse.json({ error: 'Not found or unauthorized' }, { status: 404 })
+      }
+
       const updatedEntry = await prisma.dataEntry.update({
         where: { id: parseInt(id) },
         data: {
@@ -307,7 +381,37 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'ID is required' }, { status: 400 })
     }
 
+    // Extract userId from JWT token
+    const cookie = request.cookies.get('auth-token')?.value
+    let userId: number | null = null
+
+    if (!cookie) {
+      return NextResponse.json({
+        error: 'Unauthorized',
+        details: 'No authentication token found'
+      }, { status: 401 })
+    }
+
     try {
+      const decoded = jwt.verify(cookie, process.env.JWT_SECRET || 'your-secret-key') as { userId: number; email: string }
+      userId = decoded.userId
+    } catch {
+      return NextResponse.json({
+        error: 'Unauthorized',
+        details: 'Invalid or expired token'
+      }, { status: 401 })
+    }
+
+    try {
+      // Verify ownership before deleting
+      const existingEntry = await prisma.dataEntry.findUnique({
+        where: { id: parseInt(id) }
+      })
+
+      if (!existingEntry || existingEntry.userId !== userId!) {
+        return NextResponse.json({ error: 'Not found or unauthorized' }, { status: 404 })
+      }
+
       await prisma.dataEntry.delete({
         where: { id: parseInt(id) },
       })

@@ -6,12 +6,19 @@ generator client {
 }
 
 datasource db {
-  // TEMPORARY: Using SQLite for local development (Supabase is under maintenance)
-  // When Supabase is back online, change back to:
-  // provider = "postgresql"
-  // url      = env("DATABASE_URL")
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  // Using Neon PostgreSQL database
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            Int      @id @default(autoincrement())
+  email         String   @unique
+  username      String   @unique
+  password      String   // hashed password
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  dataEntries   DataEntry[]
 }
 
 model DataEntry {
@@ -20,4 +27,6 @@ model DataEntry {
   value     Float
   category  String
   source    String
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
