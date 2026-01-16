@@ -36,7 +36,7 @@ export default function LoginForm() {
 
       // Wait a moment for cookie to be set, then redirect
       setTimeout(() => {
-        window.location.href = '/dashboard'
+        window.location.href = '/input'
       }, 100)
 
     } catch (err) {
