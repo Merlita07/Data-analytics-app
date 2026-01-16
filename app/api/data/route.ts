@@ -133,7 +133,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Get filtered and paginated data. Try Prisma first; if DATABASE_URL is missing, fall back to bundled sample CSV.
+    // Get filtered and paginated data from database
     let totalCount: number
     let data: any[]
     try {
@@ -147,59 +147,15 @@ export async function GET(request: NextRequest) {
     } catch (e: any) {
       const msg = (e && e.message) || ''
       if (msg.includes('DATABASE_URL') || e.name === 'PrismaClientInitializationError') {
-        // Try to fetch public sample CSV (works on Vercel). Fallback to local file read.
-        let csvContent = ''
-        try {
-          const origin = new URL(request.url).origin
-          const res = await fetch(`${origin}/sample-data.csv`)
-          if (res.ok) {
-            csvContent = await res.text()
-          } else {
-            const csvPath = path.resolve(process.cwd(), 'sample-data.csv')
-            csvContent = fs.readFileSync(csvPath, 'utf8')
-          }
-        } catch (fetchErr) {
-          const csvPath = path.resolve(process.cwd(), 'sample-data.csv')
-          csvContent = fs.readFileSync(csvPath, 'utf8')
-        }
-        const parsed = Papa.parse(csvContent, { header: true, skipEmptyLines: true }).data as any[]
-        const entries = parsed.map((row, idx) => ({
-          id: idx + 1,
-          timestamp: new Date(row.timestamp),
-          value: parseFloat(row.value),
-          category: row.category,
-          source: row.source,
-        }))
-
-        // Apply same filters as 'where'
-        let filtered = entries
-        if (where.timestamp) {
-          const gte = where.timestamp.gte
-          const lte = where.timestamp.lte
-          filtered = filtered.filter(e => e.timestamp >= gte && e.timestamp <= lte)
-        }
-        if (where.category) filtered = filtered.filter(e => e.category === where.category)
-        if (where.source) filtered = filtered.filter(e => e.source === where.source)
-        if (where.OR) {
-          // simple OR handling for search
-          const or = where.OR
-          filtered = filtered.filter(e => {
-            return or.some((clause: any) => {
-              if (clause.value !== undefined) return e.value === clause.value
-              if (clause.category && clause.category.contains) return e.category.toLowerCase().includes(clause.category.contains.toLowerCase())
-              if (clause.source && clause.source.contains) return e.source.toLowerCase().includes(clause.source.contains.toLowerCase())
-              return false
-            })
-          })
-        }
-
-        totalCount = filtered.length
-        // sort desc by timestamp
-        filtered.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
-        data = filtered.slice((page - 1) * limit, (page - 1) * limit + limit)
-      } else {
-        throw e
+        return NextResponse.json(
+          {
+            error: 'DATABASE_URL not configured',
+            details: 'Set DATABASE_URL in your environment or Vercel project settings to enable data retrieval. See SUPABASE_SETUP.md for configuration instructions.'
+          },
+          { status: 503 }
+        )
       }
+      throw e
     }
 
     // Enhanced analytics (on filtered data)

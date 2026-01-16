@@ -214,9 +214,7 @@ npx prisma migrate deploy
 npx prisma generate
 ```
 
-If you do not set `DATABASE_URL`, the API will use `sample-data.csv` as a demo data source so the UI still displays example data.
-
-See `VERCEL_DEPLOYMENT.md` for more detailed migration and Supabase import options.
+**Important:** You must set `DATABASE_URL` for the application to work. The application requires a Supabase (PostgreSQL) database connection. See `SUPABASE_SETUP.md` and `VERCEL_DEPLOYMENT.md` for detailed configuration instructions.
 
 ## Sentry Error Monitoring & Performance Tracking
 

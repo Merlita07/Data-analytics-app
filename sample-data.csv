@@ -1,6 +1,0 @@
-timestamp,value,category,source
-2026-01-13T10:00:00Z,123.45,Sales,API
-2026-01-13T11:00:00Z,234.56,Revenue,Manual
-2026-01-13T12:00:00Z,345.67,Expenses,Import
-2026-01-13T13:00:00Z,456.78,Profit,API
-2026-01-13T14:00:00Z,567.89,Sales,Manual
